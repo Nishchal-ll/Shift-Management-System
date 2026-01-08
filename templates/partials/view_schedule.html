@@ -1,0 +1,40 @@
+{{define "view_schedule"}}
+<h2>Shift Schedule</h2>
+<table>
+    <thead><tr><th>Employee</th><th>Shifts</th><th>Timeline</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+        {{range .GroupedAllocations}}
+        <tr>
+            <td style="font-weight:bold; color:#333;">{{.EmployeeName}}</td>
+            <td>
+                {{range .Details}}
+                <div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0;">
+                    <span class="badge {{if eq .ShiftName "Morning"}}shift-morning{{else if eq .ShiftName "Afternoon"}}shift-afternoon{{else if eq .ShiftName "Night"}}shift-night{{end}}" style="color:white; background: #555;">{{.ShiftName}}</span>
+                    {{if eq .Status "Pending"}}<span style="margin-left:10px; color:#d63384; font-size:13px;">Req: {{.NewRequestedShift}}</span>{{end}}
+                </div>
+                {{end}}
+            </td>
+            <td>{{range .Details}}<div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0; color:#444;">{{.StartDate.Format "Jan 02"}} - {{.EndDate.Format "Jan 02"}}</div>{{end}}</td>
+            <td>{{range .Details}}<div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0;">{{if eq .Status "Pending"}}<span class="badge badge-pending">Pending</span>{{else}}<span class="badge badge-confirmed">Confirmed</span>{{end}}</div>{{end}}</td>
+            <td>
+                {{$emp := .EmployeeName}}
+                {{range .Details}}
+                <div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0; gap:10px;">
+                    {{if eq $.CurrentRole "admin"}}
+                        <button onclick='openEditModal("{{.ID}}","{{$emp}}","{{.ShiftName}}","{{.StartDate}}","{{.EndDate}}")' style="background:#ffc107; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Edit</button>
+                        <form method="POST" action="/admin/delete"><input type="hidden" name="id" value="{{.ID}}"><button style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Delete</button></form>
+                    {{end}}
+                    {{if and (ne $.CurrentRole "admin") (eq $.CurrentUser $emp)}}
+                        {{if eq .Status "Confirmed"}}
+                            <form method="POST" action="/user/add-days" style="display:flex; gap:5px;"><input type="hidden" name="id" value="{{.ID}}"><select name="days"><option value="1">+1 Day</option><option value="2">+2 Days</option><option value="7">+1 Week</option></select><button style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px;">Add</button></form>
+                            <form method="POST" action="/user/request-swap" style="display:flex; gap:5px;"><input type="hidden" name="id" value="{{.ID}}">{{$cur := .ShiftName}}<select name="new_shift">{{range $.ShiftTypes}}{{if ne .Name $cur}}<option value="{{.Name}}">{{.Name}}</option>{{end}}{{end}}</select><button style="background:#6610f2; color:white; border:none; padding:6px 12px; border-radius:4px;">Swap</button></form>
+                        {{else}}<span style="font-size:13px; color:#888;">Pending Approval</span>{{end}}
+                    {{end}}
+                </div>
+                {{end}}
+            </td>
+        </tr>
+        {{else}}<tr><td colspan="5" style="padding:30px; text-align:center; color:#888;">No shifts scheduled.</td></tr>{{end}}
+    </tbody>
+</table>
+{{end}}

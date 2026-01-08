@@ -1,0 +1,23 @@
+{{define "nav"}}
+<nav>
+    <h1>💠 ShiftPro</h1>
+    <a href="/dashboard?view=schedule" class="{{if eq .CurrentView "schedule"}}active{{end}}">📅 Schedule</a>
+
+    {{if eq .CurrentRole "admin"}}
+        <a href="/dashboard?view=assign" class="{{if eq .CurrentView "assign"}}active{{end}}">➕ Assign Shift</a>
+        <a href="/dashboard?view=add_user" class="{{if eq .CurrentView "add_user"}}active{{end}}">👤 Add User</a>
+        <a href="/dashboard?view=requests" class="{{if eq .CurrentView "requests"}}active{{end}}">📩 Requests</a>
+        <a href="/dashboard?view=quotas" class="{{if eq .CurrentView "quotas"}}active{{end}}">⚙️ Manage Quotas</a>
+        <a href="/dashboard?view=users" class="{{if eq .CurrentView "users"}}active{{end}}">👥 Manage Users</a>
+        <a href="/dashboard?view=settings" class="{{if eq .CurrentView "settings"}}active{{end}}">📅 Manage Shifts</a>
+    {{end}}
+
+    <a href="/dashboard?view=calendar" class="{{if eq .CurrentView "calendar"}}active{{end}}">🗓️ Calendar View</a>
+
+    <div class="user-info">
+        User: <strong>{{.CurrentUser}}</strong><br>
+        Role: {{.CurrentRole}}
+        <form action="/logout" method="POST"><button type="submit">Log Out</button></form>
+    </div>
+</nav>
+{{end}}

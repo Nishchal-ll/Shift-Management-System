@@ -1,0 +1,36 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ShiftPro Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    {{template "nav" .}}
+
+    <main>
+        <div id="error-banner">
+            <strong>⚠️ Error:</strong> <span id="error-text"></span>
+            <button onclick="this.parentElement.style.display='none'" style="float:right; background:none; border:none; color:#721c24; cursor:pointer;">✖</button>
+        </div>
+
+        {{if eq .CurrentView "schedule"}}
+            {{template "view_schedule" .}}
+        {{else if eq .CurrentView "calendar"}}
+            {{template "view_calendar" .}}
+        {{else}}
+            {{template "view_admin" .}}
+        {{end}}
+
+    </main>
+
+    {{template "modal_edit" .}}
+
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    <script src="/static/js/app.js"></script>
+
+</body>
+</html>
+{{end}}

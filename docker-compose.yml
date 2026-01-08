@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: go_user
+      POSTGRES_PASSWORD: go_pass
+      POSTGRES_DB: gobasics
+    # ports:
+    #   - "5432:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: go_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: go_user
+
+      DB_PASSWORD: go_pass
+      DB_NAME: gobasics
+      DB_URL: "host=db port=5432 user=go_user password=go_pass dbname=gobasics sslmode=disable"
+
+volumes:
+  pgdata:
+  

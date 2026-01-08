@@ -1,0 +1,116 @@
+{{define "view_admin"}}
+
+{{if and (eq .CurrentView "add_user") (eq .CurrentRole "admin")}}
+    <h2>Create New User</h2>
+    <div class="card">
+        <form action="/admin/add-user" method="POST">
+            <label>Username</label>
+            <input type="text" name="user_name" placeholder="e.g., john" required>
+            <button type="submit" class="btn">Create Account</button>
+        </form>
+    </div>
+{{end}}
+
+{{if and (eq .CurrentView "assign") (eq .CurrentRole "admin")}}
+    <h2>Assign New Shift</h2>
+    <div class="card">
+        <form action="/assign" method="POST">
+            <label>Select Employee</label>
+            <select name="employee_name">{{range .Employees}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+            <label>Select Shift</label>
+            <select name="shift_type">{{range .ShiftTypes}}<option value="{{.Name}}">{{.Name}} ({{.Hours}})</option>{{end}}</select>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1"><label>Start Date</label><input type="date" name="start_date" required></div>
+                <div style="flex:1"><label>End Date</label><input type="date" name="end_date" required></div>
+            </div>
+            <button type="submit" class="btn">Assign Shift</button>
+        </form>
+    </div>
+{{end}}
+
+{{if and (eq .CurrentView "requests") (eq .CurrentRole "admin")}}
+    <h2>Pending Requests</h2>
+    <div style="background:white; border:1px solid #ddd; border-radius:8px; overflow:hidden;">
+        <table>
+            <thead><tr><th>Current Employee</th><th>Current Shift</th><th style="color:#d63384;">Requested Change</th><th>Action</th></tr></thead>
+            <tbody>
+                {{$count := 0}}
+                {{range .Allocations}}
+                    {{if eq .Status "Pending"}}
+                        {{$count = 1}}
+                        <tr>
+                            <td style="font-weight:bold;">{{.EmployeeName}}</td>
+                            <td>{{.ShiftName}}</td>
+                            <td style="color: #d63384; font-weight: bold;">➡ {{.NewRequestedShift}}</td>
+                            <td>
+                                <div style="display:flex; gap:10px; align-items:center;">
+                                    <form action="/admin/approve" method="POST" style="margin:0;"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" style="background:#198754; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Approve Swap</button></form>
+                                    <form action="/admin/replace" method="POST" style="display:flex; gap:5px; margin:0;"><input type="hidden" name="id" value="{{.ID}}"><select name="new_employee" required style="padding:8px; border:1px solid #ccc; border-radius:4px; width: 130px;"><option value="" disabled selected>Or Replace...</option>{{range $.Employees}}<option value="{{.}}">{{.}}</option>{{end}}</select><button type="submit" style="background:#ffc107; color:black; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Replace</button></form>
+                                </div>
+                            </td>
+                        </tr>
+                    {{end}}
+                {{end}}
+                {{if eq $count 0}}<tr><td colspan="4" style="padding:40px; text-align:center; color:#888;">No pending swap requests found.</td></tr>{{end}}
+            </tbody>
+        </table>
+    </div>
+{{end}}
+
+{{if and (eq .CurrentView "users") (eq .CurrentRole "admin")}}
+    <h2>Manage Employees</h2>
+    <table class="table">
+        <thead><tr><th>Employee Name</th><th>Role</th><th>Action</th></tr></thead>
+        <tbody>
+            {{range .Employees}}
+            <tr>
+                <td>{{.}}</td> <td>User</td>
+                <td><form action="/admin/delete-user" method="POST" onsubmit="return confirm('Are you sure?');"><input type="hidden" name="username" value="{{.}}"><button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Delete Employee</button></form></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+{{end}}
+
+{{if and (eq .CurrentView "quotas") (eq .CurrentRole "admin")}}
+    <h2>Shift Quota Settings</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+        {{range .ShiftTypes}}
+        <div class="card" style="border-top: 4px solid #007bff;">
+            <h3 style="margin-top:0;">{{.Name}} Shift</h3>
+            <form action="/admin/update-quota" method="POST">
+                <input type="hidden" name="shift_name" value="{{.Name}}">
+                <label>Min Employees:</label>
+                <div style="display:flex; gap:10px;"><input type="number" name="quota" value="{{.Quota}}" min="1" required style="margin-bottom:0; font-size:1.1rem; font-weight:bold;"><button type="submit" class="btn" style="background:#28a745; padding: 8px 15px;">Save</button></div>
+            </form>
+        </div>
+        {{end}}
+    </div>
+{{end}}
+
+{{if eq .CurrentView "settings"}}
+    <h2 style="margin-bottom: 20px; color: #333;">Shift Configuration</h2>
+    <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 300px; background: white; border: 1px solid #ddd; padding: 25px; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px;">Create New Shift</h3>
+            <form action="/admin/add-shift" method="POST" style="margin-top: 20px;">
+                <div style="margin-bottom: 15px;"><label>Shift Name</label><input type="text" name="name" placeholder="e.g. Holiday Morning" required></div>
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;"><div style="flex: 1;"><label>Start Time</label><input type="time" name="start_time" required></div><div style="flex: 1;"><label>End Time</label><input type="time" name="end_time" required></div></div>
+                <button type="submit" style="width: 100%; background-color: #28a745; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;">+ Add Shift</button>
+            </form>
+        </div>
+        <div style="flex: 1.5; min-width: 300px; background: white; border: 1px solid #ddd; padding: 0; border-radius: 8px; overflow: hidden;">
+            <div style="padding: 20px; background-color: #f8f9fa; border-bottom: 1px solid #ddd;"><h3 style="margin: 0; color: #333;">Active Shifts</h3></div>
+            <table>
+                <thead><tr><th style="padding-left:15px;">Shift Name</th><th>Duration</th><th style="text-align: right; padding-right:15px;">Actions</th></tr></thead>
+                <tbody>
+                    {{range .ShiftTypes}}
+                    <tr><td style="padding-left:15px; font-weight: bold;">{{.Name}}</td><td>{{.StartTime}} - {{.EndTime}}</td><td style="padding-right:15px; text-align: right;"><form action="/admin/delete-shift" method="POST" style="margin:0;"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" onclick="return confirm('Delete {{.Name}}?');" style="background-color: #dc3545; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Delete</button></form></td></tr>
+                    {{else}}<tr><td colspan="3" style="padding: 30px; text-align: center; color: #999;">No active shifts.</td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{{end}}
+{{end}}
