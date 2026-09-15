@@ -125,9 +125,10 @@ graph TD
 │   ├── allocation_actions.go   # Swap, replace, approve & edit actions
 │   ├── validation.go           # Overlap & capacity availability checks
 │   └── notification.go         # Persistent notification queries
-├── templates/                  # HTML templates (Go html/template)
-│   ├── base.html               # Main layout, nav, toasts, MQTT subscriber
-│   ├── login.html              # Modern login page
+├── templates/                  # Go templates (Go html/template)
+│   ├── base.gohtml             # Main layout, nav, toasts, MQTT subscriber
+│   ├── login.gohtml            # Modern login page
+│   ├── landing.gohtml          # Landing presentation page
 │   └── partials/               # Dynamic views (calendar, admin roster, cron card, etc.)
 ├── static/                     # Static assets (CSS, JS)
 │   ├── css/style.css           # Glassmorphism design system & responsive layout

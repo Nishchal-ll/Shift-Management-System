@@ -1,0 +1,3 @@
+# Treat Go template files as Go in GitHub language statistics
+*.gohtml linguist-language=Go
+templates/** linguist-language=Go

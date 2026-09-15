@@ -30,7 +30,7 @@ func LandingHandler(w http.ResponseWriter, r *http.Request) {
 		CurrentRole: role,
 	}
 
-	tmpl, err := template.ParseFiles("templates/landing.html")
+	tmpl, err := template.ParseFiles("templates/landing.gohtml")
 	if err != nil {
 		http.Error(w, "Error loading landing page: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -51,7 +51,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			"Error": errorMsg,
 		}
 
-		tmpl, err := template.ParseFiles("templates/login.html")
+		tmpl, err := template.ParseFiles("templates/login.gohtml")
 		if err != nil {
 			http.Error(w, "Error loading login page: "+err.Error(), http.StatusInternalServerError)
 			return

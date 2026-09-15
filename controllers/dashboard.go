@@ -34,12 +34,12 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 	// Since we split the HTML, we must load the Base + All Partials.
 	// Paths are relative to the "backend" folder where you run the command.
 	files := []string{
-		"templates/base.html",
-		"templates/partials/nav.html",
-		"templates/partials/view_schedule.html",
-		"templates/partials/view_admin.html",
-		"templates/partials/view_calendar.html",
-		"templates/partials/modal_edit.html",
+		"templates/base.gohtml",
+		"templates/partials/nav.gohtml",
+		"templates/partials/view_schedule.gohtml",
+		"templates/partials/view_admin.gohtml",
+		"templates/partials/view_calendar.gohtml",
+		"templates/partials/modal_edit.gohtml",
 	}
 
 	tmpl, err := template.ParseFiles(files...)
