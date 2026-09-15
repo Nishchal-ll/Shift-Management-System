@@ -10,8 +10,8 @@ func GetUserRole(username, password string) (string, bool) {
 	return role, true
 }
 
-func CreateUser(username string) error {
-	_, err := DB.Exec("INSERT INTO users (username, password, role) VALUES ($1, $1, 'user') ON CONFLICT (username) DO NOTHING", username)
+func CreateUser(username, password string) error {
+	_, err := DB.Exec("INSERT INTO users (username, password, role) VALUES ($1, $2, 'user')", username, password)
 	return err
 }
 
