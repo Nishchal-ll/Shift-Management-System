@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShiftPro — The schedule that runs itself</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --bg-tint: #f8fafc;
+            --bg-deep: #0f172a;
+            --bg-card: #ffffff;
+            --text: #0f172a;
+            --text-soft: rgba(15, 23, 42, 0.72);
+            --text-mute: rgba(15, 23, 42, 0.5);
+            --text-faint: rgba(15, 23, 42, 0.3);
+            --line: rgba(15, 23, 42, 0.1);
+            --line-strong: rgba(15, 23, 42, 0.22);
+
+            --blue: #2563eb;
+            --blue-deep: #1d4ed8;
+            --blue-soft: rgba(37, 99, 235, 0.08);
+            --blue-line: rgba(37, 99, 235, 0.25);
+            --amber: #f59e0b;
+            --teal: #0d9488;
+
+            --radius: 8px;
+            --font-main: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'IBM Plex Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-main);
+            font-size: 16px;
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        ::selection {
+            background: var(--blue);
+            color: #ffffff;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        /* Noise overlay */
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.02;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>");
+            animation: noise 20s linear infinite;
+            mix-blend-mode: multiply;
+        }
+
+        @keyframes noise {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-10%, 5%); }
+            50% { transform: translate(-10%, 5%); }
+            80% { transform: translate(-15%, 0); }
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+        }
+
+        .wrap {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 0 32px;
+        }
+
+        @media (max-width:640px) {
+            .wrap {
+                padding: 0 20px;
+            }
+        }
+
+        /* ---------- NAVIGATION ---------- */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .nav-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 32px;
+            max-width: 1360px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 19px;
+            letter-spacing: -0.02em;
+            color: var(--text);
+        }
+
+        .logo-mark {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            background: var(--blue);
+            position: relative;
+            flex: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+        }
+
+        .logo-mark::after {
+            content: "";
+            width: 7px;
+            height: 7px;
+            background: #ffffff;
+            border-radius: 1px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-soft);
+        }
+
+        .nav-links a {
+            transition: color 200ms ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--blue);
+        }
+
+        .nav-cta {
+            background: var(--blue);
+            color: #ffffff;
+            padding: 9px 18px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: background 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+        }
+
+        .nav-cta:hover {
+            background: var(--blue-deep);
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+        }
+
+        @media (max-width:760px) {
+            .nav-links-mobile-hide {
+                display: none;
+            }
+        }
+
+        /* ---------- HERO ROSTER (PRIMARY LANDING SECTION) ---------- */
+        header.hero-roster {
+            padding: 56px 0 70px;
+            position: relative;
+            background: radial-gradient(circle at 50% 0%, var(--blue-soft) 0%, transparent 65%);
+        }
+
+        .roster-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 32px;
+            margin-bottom: 36px;
+            flex-wrap: wrap;
+        }
+
+        .section-head {
+            max-width: 64ch;
+        }
+
+        .roster-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--blue);
+            background: var(--blue-soft);
+            border: 1px solid var(--blue-line);
+            padding: 6px 14px;
+            border-radius: 100px;
+            margin-bottom: 16px;
+        }
+
+        .dot-live {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--blue);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, .5); }
+            50% { box-shadow: 0 0 0 5px rgba(37, 99, 235, 0); }
+        }
+
+        .section-head h1 {
+            font-size: clamp(30px, 3.6vw, 48px);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            color: var(--text);
+        }
+
+        .section-head h1 em {
+            font-style: normal;
+            color: var(--blue);
+        }
+
+        .section-head p.lede {
+            margin-top: 14px;
+            color: var(--text-soft);
+            font-size: 16.5px;
+            line-height: 1.6;
+            max-width: 56ch;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: var(--blue);
+            color: #ffffff;
+            padding: 12px 22px;
+            border-radius: var(--radius);
+            font-size: 14.5px;
+            font-weight: 600;
+            display: inline-block;
+            border: 1px solid var(--blue);
+            transition: background 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+        }
+
+        .btn-primary:hover {
+            background: var(--blue-deep);
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-secondary {
+            padding: 12px 22px;
+            border-radius: var(--radius);
+            font-size: 14.5px;
+            font-weight: 600;
+            border: 1px solid var(--line-strong);
+            background: #ffffff;
+            color: var(--text);
+            display: inline-block;
+            transition: background 200ms ease, border-color 200ms ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(37, 99, 235, 0.05);
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .hero-foot {
+            font-size: 12.5px;
+            color: var(--text-mute);
+        }
+
+        /* 7-DAY WALL GRID */
+        .wall-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 14px;
+            margin-top: 10px;
+        }
+
+        .wall-card {
+            background: var(--bg-card);
+            border: 1px solid var(--line);
+            padding: 1.4rem 1.1rem;
+            min-height: 290px;
+            display: flex;
+            flex-direction: column;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+            transition: transform 250ms ease, box-shadow 250ms ease, border-color 200ms ease;
+        }
+
+        .wall-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--blue-line);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.1);
+        }
+
+        .wall-card .day-name {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            margin-bottom: 0.25rem;
+        }
+
+        .wall-card .day-num {
+            font-size: 2.1rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 1.25rem;
+            letter-spacing: -0.03em;
+            color: var(--text);
+        }
+
+        .wall-card .shift-block {
+            border-top: 1px solid var(--line);
+            padding: 0.55rem 0;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .wall-card .shift-block:last-of-type {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .wall-card .shift-block .role {
+            color: var(--text-mute);
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.15rem;
+        }
+
+        .wall-card .shift-block .who {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--text);
+        }
+
+        .wall-card .foot {
+            margin-top: auto;
+            padding-top: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 0.7rem;
+            color: var(--text-mute);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .wall-card .foot .cov {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--blue);
+            text-transform: none;
+        }
+
+        .wall-card.is-today {
+            background: var(--blue);
+            color: #ffffff;
+            border-color: var(--blue);
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.35);
+        }
+
+        .wall-card.is-today .day-name,
+        .wall-card.is-today .shift-block .role,
+        .wall-card.is-today .foot {
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .wall-card.is-today .day-num,
+        .wall-card.is-today .shift-block .who,
+        .wall-card.is-today .foot .cov {
+            color: #ffffff;
+        }
+
+        .wall-card.is-today .shift-block {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .wall-card.is-today .shift-block:last-of-type {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 1100px) {
+            .wall-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 680px) {
+            .wall-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* ---------- STATS TICKER ---------- */
+        section.stats {
+            padding: 70px 0;
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            background: var(--bg-tint);
+        }
+
+        .ticker {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            background: #ffffff;
+            border-radius: var(--radius);
+        }
+
+        @media (max-width:700px) {
+            .ticker {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .tick {
+            padding: 28px 26px;
+            border-left: 1px solid var(--line);
+        }
+
+        .ticker>.tick:first-child {
+            border-left: none;
+        }
+
+        @media (max-width:700px) {
+            .tick {
+                border-left: none;
+                border-top: 1px solid var(--line);
+            }
+            .ticker>.tick:first-child {
+                border-top: none;
+            }
+        }
+
+        .tick .num {
+            font-size: 38px;
+            font-weight: 800;
+            color: var(--blue);
+            line-height: 1;
+            letter-spacing: -0.02em;
+        }
+
+        .tick .num .mono-unit {
+            font-family: var(--font-mono);
+            font-size: 16px;
+            color: var(--text-mute);
+            margin-left: 4px;
+            font-weight: 600;
+        }
+
+        .tick .cap {
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--text-soft);
+            font-weight: 500;
+        }
+
+        /* ---------- FINAL CTA ---------- */
+        section.final-cta {
+            background: var(--bg);
+            border-bottom: 1px solid var(--line);
+            padding: 90px 0;
+            text-align: left;
+            position: relative;
+        }
+
+        .final-cta h2 {
+            font-size: clamp(28px, 3.6vw, 42px);
+            font-weight: 800;
+            max-width: 20ch;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+        }
+
+        .final-cta h2 em {
+            font-style: normal;
+            color: var(--blue);
+        }
+
+        .final-cta .cta-row {
+            margin-top: 28px;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        /* ---------- FOOTER ---------- */
+        footer {
+            padding: 44px 0 36px;
+            background: var(--bg-tint);
+        }
+
+        .foot-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13.5px;
+            color: var(--text-mute);
+        }
+
+        .foot-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .foot-links a {
+            color: var(--text-mute);
+            transition: color 200ms ease;
+        }
+
+        .foot-links a:hover {
+            color: var(--blue);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .dot-live {
+                animation: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="noise-overlay"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-row">
+            <a href="/" class="logo"><span class="logo-mark"></span>ShiftPro</a>
+            <div class="nav-links nav-links-mobile-hide">
+                <a href="#roster">Weekly Roster</a>
+                <a href="#stats">Results</a>
+                {{if .CurrentUser}}
+                <a href="/dashboard" class="nav-cta">Dashboard ({{.CurrentUser}})</a>
+                {{else}}
+                <a href="/login">Sign In</a>
+                <a href="/login" class="nav-cta">Get Started</a>
+                {{end}}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Primary Hero: Weekly Roster Overview -->
+    <header class="hero-roster" id="roster">
+        <div class="wrap">
+            <div class="roster-header-row">
+                <div class="section-head">
+                    <div class="roster-badge"><span class="dot-live"></span>Weekly Roster Overview</div>
+                    <h1>Seven days. One view.<br><em>Complete team clarity.</em></h1>
+                    <p class="lede">Get an instant bird's-eye view of your entire workforce roster. Every shift, every
+                        role, and every assigned employee arranged cleanly across the operational week.</p>
+                </div>
+                <div class="hero-actions">
+                    <div class="hero-ctas">
+                        {{if .CurrentUser}}
+                        <a href="/dashboard" class="btn-primary">Open Dashboard</a>
+                        {{else}}
+                        <a href="/login" class="btn-primary">Start Scheduling Free</a>
+                        <a href="/login" class="btn-secondary">Sign In</a>
+                        {{end}}
+                    </div>
+                    <p class="hero-foot">Demo logins: admin / admin123 • alice / alice123</p>
+                </div>
+            </div>
+
+            <div class="wall-grid">
+                <article class="wall-card">
+                    <div class="day-name">Monday</div>
+                    <div class="day-num">14</div>
+                    <div class="shift-block">
+                        <div class="role">08:00 — 16:00 · Morning</div>
+                        <div class="who">Alice</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">16:00 — 00:00 · Afternoon</div>
+                        <div class="who">David</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">00:00 — 08:00 · Night</div>
+                        <div class="who">Nishchal</div>
+                    </div>
+                    <div class="foot"><span>Coverage</span><span class="cov">3/3</span></div>
+                </article>
+
+                <article class="wall-card">
+                    <div class="day-name">Tuesday</div>
+                    <div class="day-num">15</div>
+                    <div class="shift-block">
+                        <div class="role">08:00 — 16:00 · Morning</div>
+                        <div class="who">Alice</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">16:00 — 00:00 · Afternoon</div>
+                        <div class="who">Sarah</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">00:00 — 08:00 · Night</div>
+                        <div class="who">David</div>
+                    </div>
+                    <div class="foot"><span>Coverage</span><span class="cov">3/3</span></div>
+                </article>
+
+                <article class="wall-card is-today">
+                    <div class="day-name">Wednesday — Today</div>
+                    <div class="day-num">16</div>
+                    <div class="shift-block">
+                        <div class="role">08:00 — 16:00 · Morning</div>
+                        <div class="who">Nishchal</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">16:00 — 00:00 · Afternoon</div>
+                        <div class="who">Alice</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">00:00 — 08:00 · Night</div>
+                        <div class="who">Sarah</div>
+                    </div>
+                    <div class="foot"><span>Coverage</span><span class="cov">3/3</span></div>
+                </article>
+
+                <article class="wall-card">
+                    <div class="day-name">Thursday</div>
+                    <div class="day-num">17</div>
+                    <div class="shift-block">
+                        <div class="role">08:00 — 16:00 · Morning</div>
+                        <div class="who">David</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">16:00 — 00:00 · Afternoon</div>
+                        <div class="who">Nishchal</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">00:00 — 08:00 · Night</div>
+                        <div class="who">Alice</div>
+                    </div>
+                    <div class="foot"><span>Coverage</span><span class="cov">3/3</span></div>
+                </article>
+
+                <article class="wall-card">
+                    <div class="day-name">Friday</div>
+                    <div class="day-num">18</div>
+                    <div class="shift-block">
+                        <div class="role">08:00 — 16:00 · Morning</div>
+                        <div class="who">Sarah</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">16:00 — 00:00 · Afternoon</div>
+                        <div class="who">David</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">00:00 — 08:00 · Night</div>
+                        <div class="who">Nishchal</div>
+                    </div>
+                    <div class="foot"><span>Coverage</span><span class="cov">3/3</span></div>
+                </article>
+
+                <article class="wall-card">
+                    <div class="day-name">Saturday</div>
+                    <div class="day-num">19</div>
+                    <div class="shift-block">
+                        <div class="role">08:00 — 16:00 · Morning</div>
+                        <div class="who">Alice</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">16:00 — 00:00 · Afternoon</div>
+                        <div class="who">Sarah</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">00:00 — 08:00 · Night</div>
+                        <div class="who">David</div>
+                    </div>
+                    <div class="foot"><span>Coverage</span><span class="cov">3/3</span></div>
+                </article>
+
+                <article class="wall-card">
+                    <div class="day-name">Sunday</div>
+                    <div class="day-num">20</div>
+                    <div class="shift-block">
+                        <div class="role">08:00 — 16:00 · Morning</div>
+                        <div class="who">David</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">16:00 — 00:00 · Afternoon</div>
+                        <div class="who">Nishchal</div>
+                    </div>
+                    <div class="shift-block">
+                        <div class="role">00:00 — 08:00 · Night</div>
+                        <div class="who">Alice</div>
+                    </div>
+                    <div class="foot"><span>Coverage</span><span class="cov">3/3</span></div>
+                </article>
+            </div>
+        </div>
+    </header>
+
+    <!-- Stats Ticker -->
+    <section class="stats" id="stats">
+        <div class="wrap">
+            <div class="ticker">
+                <div class="tick">
+                    <div class="num">4.5<span class="mono-unit">hrs/wk</span></div>
+                    <div class="cap">saved per manager on shift scheduling</div>
+                </div>
+                <div class="tick">
+                    <div class="num">100<span class="mono-unit">%</span></div>
+                    <div class="cap">quota compliance across active shifts</div>
+                </div>
+                <div class="tick">
+                    <div class="num">&lt; 1<span class="mono-unit">min</span></div>
+                    <div class="cap">average time to assign or approve a swap</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <div class="wrap">
+            <h2>Stop building schedules in <em>messy spreadsheets.</em></h2>
+            <div class="cta-row">
+                {{if .CurrentUser}}
+                <a href="/dashboard" class="btn-primary">Go to Dashboard</a>
+                {{else}}
+                <a href="/login" class="btn-primary">Start Scheduling with ShiftPro</a>
+                <a href="/login" class="btn-secondary">Sign In</a>
+                {{end}}
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="wrap foot-row">
+            <div>© 2026 ShiftPro Management System.</div>
+            <div class="foot-links">
+                <a href="#roster">Weekly Roster</a>
+                <a href="#stats">Results</a>
+                <a href="/login">Sign In</a>
+                <a href="/dashboard">Dashboard</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

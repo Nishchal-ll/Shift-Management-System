@@ -1,40 +1,372 @@
 {{define "view_schedule"}}
-<h2>Shift Schedule</h2>
-<table>
-    <thead><tr><th>Employee</th><th>Shifts</th><th>Timeline</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>
-        {{range .GroupedAllocations}}
-        <tr>
-            <td style="font-weight:bold; color:#333;">{{.EmployeeName}}</td>
-            <td>
-                {{range .Details}}
-                <div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0;">
-                    <span class="badge {{if eq .ShiftName "Morning"}}shift-morning{{else if eq .ShiftName "Afternoon"}}shift-afternoon{{else if eq .ShiftName "Night"}}shift-night{{end}}" style="color:white; background: #555;">{{.ShiftName}}</span>
-                    {{if eq .Status "Pending"}}<span style="margin-left:10px; color:#d63384; font-size:13px;">Req: {{.NewRequestedShift}}</span>{{end}}
+
+{{if eq .CurrentRole "admin"}}
+<!-- Auto-Scheduler Cron Control Panel -->
+<div class="dash-card cron-control-card">
+    <div class="cron-card-body">
+        <div class="cron-card-left">
+            <div class="cron-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <div>
+                <div class="cron-title-row">
+                    <h3 class="cron-card-title">Automated Shift Scheduler & Cron Allocator</h3>
+                    <span class="cron-status-pill {{if .CronStatus.Enabled}}status-active{{else}}status-paused{{end}}" id="cronStatusPill">
+                        <span class="pulse-dot"></span>
+                        <span id="cronStatusText">{{.CronStatus.StatusText}}</span>
+                    </span>
+                </div>
+                <p class="cron-card-subtitle">Intelligently auto-generates balanced shift rosters, avoids scheduling conflicts, and broadcasts live MQTT notifications.</p>
+                <div class="cron-stats-bar">
+                    <span class="cron-stat-badge"><strong>Cycle Interval:</strong> 1 minute</span>
+                    <span class="cron-stat-badge"><strong>Last Executed:</strong> <span id="cronLastRun">{{.CronStatus.LastRunStr}}</span></span>
+                    <span class="cron-stat-badge"><strong>Total Auto-Assigned:</strong> <span id="cronShiftsAssigned">{{.CronStatus.ShiftsAssigned}}</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cron-card-right">
+            <div class="cron-toggle-wrapper">
+                <span class="toggle-label" id="cronToggleLabel">{{if .CronStatus.Enabled}}Cron Enabled{{else}}Cron Paused{{end}}</span>
+                <label class="switch-control" title="Toggle Auto-Scheduler ON/OFF">
+                    <input type="checkbox" id="cronToggleInput" onchange="toggleCronScheduler(this.checked)" {{if .CronStatus.Enabled}}checked{{end}}>
+                    <span class="slider-round"></span>
+                </label>
+            </div>
+            <button type="button" class="btn-cron-run-now" id="btnRunCronNow" onclick="runCronNow()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Run Auto-Assign Now</span>
+            </button>
+        </div>
+    </div>
+</div>
+{{end}}
+
+<!-- Top Stat Cards & Target Gauge Row -->
+<div class="dash-metrics-grid">
+    {{if eq .CurrentRole "admin"}}
+        <!-- Admin Card 1: Active Staff -->
+        <div class="metric-card">
+            <div class="metric-card-top">
+                <div class="metric-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <span class="metric-trend-badge trend-up">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    100% Active
+                </span>
+            </div>
+            <div class="metric-label">Registered Staff</div>
+            <div class="metric-value">{{.TotalStaffCount}}</div>
+            <div class="metric-foot">Active workforce in roster</div>
+        </div>
+
+        <!-- Admin Card 2: Shift Allocations -->
+        <div class="metric-card">
+            <div class="metric-card-top">
+                <div class="metric-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </div>
+                <span class="metric-trend-badge trend-up">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    {{.ConfirmedCount}} Confirmed
+                </span>
+            </div>
+            <div class="metric-label">Scheduled Shifts</div>
+            <div class="metric-value">{{.TotalShiftsCount}}</div>
+            <div class="metric-foot">Assigned across rotation cycles</div>
+        </div>
+    {{else}}
+        <!-- Employee Card 1: My Total Shifts -->
+        <div class="metric-card">
+            <div class="metric-card-top">
+                <div class="metric-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </div>
+                <span class="metric-trend-badge trend-up">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    My Schedule
+                </span>
+            </div>
+            <div class="metric-label">My Assigned Shifts</div>
+            <div class="metric-value">{{.TotalShiftsCount}}</div>
+            <div class="metric-foot">Total shifts assigned to you</div>
+        </div>
+
+        <!-- Employee Card 2: Confirmed vs Pending Swaps -->
+        <div class="metric-card">
+            <div class="metric-card-top">
+                <div class="metric-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="17 1 21 5 17 9"></polyline>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <polyline points="7 23 3 19 7 15"></polyline>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
+                </div>
+                <span class="metric-trend-badge {{if gt .PendingCount 0}}trend-neutral{{else}}trend-up{{end}}">
+                    {{.PendingCount}} Pending
+                </span>
+            </div>
+            <div class="metric-label">Swap Status</div>
+            <div class="metric-value">{{.ConfirmedCount}} Active</div>
+            <div class="metric-foot">{{if gt .PendingCount 0}}Swap request under review{{else}}All assigned shifts confirmed{{end}}</div>
+        </div>
+    {{end}}
+
+    <!-- Gauge Card 3: Monthly Target / Coverage Efficiency -->
+    <div class="metric-card gauge-metric-card">
+        <div class="gauge-card-header">
+            <div>
+                <h3 class="gauge-title">{{if eq .CurrentRole "admin"}}Coverage Target{{else}}Weekly Distribution{{end}}</h3>
+                <p class="gauge-subtitle">{{if eq .CurrentRole "admin"}}Quota compliance for active cycle{{else}}Shift breakdown by time of day{{end}}</p>
+            </div>
+            <button class="gauge-menu-btn" title="Options">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+            </button>
+        </div>
+
+        <div class="gauge-visual-container">
+            <svg class="gauge-svg" viewBox="0 0 200 110">
+                <!-- Background Arc -->
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round"/>
+                <!-- Value Arc -->
+                <path d="M 20 100 A 80 80 0 0 1 170 65" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round"/>
+            </svg>
+            <div class="gauge-center-text">
+                <div class="gauge-percent">{{.CoverageRate}}%</div>
+                <div class="gauge-pill">Optimal</div>
+            </div>
+        </div>
+
+        <div class="gauge-card-footer">
+            <p class="gauge-summary-text">{{if eq .CurrentRole "admin"}}Operational quota fulfillment across shifts.{{else}}Your personal shift distribution proportion.{{end}}</p>
+            <div class="gauge-stat-triplet">
+                <div class="gauge-stat-item">
+                    <span class="gauge-stat-label">Morning</span>
+                    <span class="gauge-stat-val">{{.MorningPct}}%</span>
+                </div>
+                <div class="gauge-stat-item">
+                    <span class="gauge-stat-label">Afternoon</span>
+                    <span class="gauge-stat-val">{{.AfternoonPct}}%</span>
+                </div>
+                <div class="gauge-stat-item">
+                    <span class="gauge-stat-label">Night</span>
+                    <span class="gauge-stat-val">{{.NightPct}}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Middle Row: Monthly Shift Distribution Bar Chart & Statistics -->
+<div class="dash-charts-grid">
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <div>
+                <h3 class="dash-card-title">{{if eq .CurrentRole "admin"}}Weekly Shift Distribution{{else}}My Weekly Schedule Load{{end}}</h3>
+                <p class="dash-card-subtitle">{{if eq .CurrentRole "admin"}}Live staff allocations per day of operational week{{else}}Your assigned duty coverage per day{{end}}</p>
+            </div>
+            <button class="gauge-menu-btn" title="Options">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+            </button>
+        </div>
+        <div class="bar-chart-container">
+            <div class="bar-chart-bars">
+                {{range .WeeklyBars}}
+                <div class="bar-col">
+                    <div class="bar-fill" style="height: {{.HeightPercent}}%;" title="{{.Count}} active shifts on {{.Day}}"></div>
+                    <span>{{.Day}}</span>
                 </div>
                 {{end}}
-            </td>
-            <td>{{range .Details}}<div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0; color:#444;">{{.StartDate.Format "Jan 02"}} - {{.EndDate.Format "Jan 02"}}</div>{{end}}</td>
-            <td>{{range .Details}}<div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0;">{{if eq .Status "Pending"}}<span class="badge badge-pending">Pending</span>{{else}}<span class="badge badge-confirmed">Confirmed</span>{{end}}</div>{{end}}</td>
-            <td>
-                {{$emp := .EmployeeName}}
-                {{range .Details}}
-                <div style="min-height:60px; display:flex; align-items:center; border-bottom:1px solid #f0f0f0; gap:10px;">
-                    {{if eq $.CurrentRole "admin"}}
-                        <button onclick='openEditModal("{{.ID}}","{{$emp}}","{{.ShiftName}}","{{.StartDate}}","{{.EndDate}}")' style="background:#ffc107; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Edit</button>
-                        <form method="POST" action="/admin/delete"><input type="hidden" name="id" value="{{.ID}}"><button style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Delete</button></form>
-                    {{end}}
-                    {{if and (ne $.CurrentRole "admin") (eq $.CurrentUser $emp)}}
-                        {{if eq .Status "Confirmed"}}
-                            <form method="POST" action="/user/add-days" style="display:flex; gap:5px;"><input type="hidden" name="id" value="{{.ID}}"><select name="days"><option value="1">+1 Day</option><option value="2">+2 Days</option><option value="7">+1 Week</option></select><button style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px;">Add</button></form>
-                            <form method="POST" action="/user/request-swap" style="display:flex; gap:5px;"><input type="hidden" name="id" value="{{.ID}}">{{$cur := .ShiftName}}<select name="new_shift">{{range $.ShiftTypes}}{{if ne .Name $cur}}<option value="{{.Name}}">{{.Name}}</option>{{end}}{{end}}</select><button style="background:#6610f2; color:white; border:none; padding:6px 12px; border-radius:4px;">Swap</button></form>
-                        {{else}}<span style="font-size:13px; color:#888;">Pending Approval</span>{{end}}
-                    {{end}}
-                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Primary Schedule Roster Table Section -->
+<div class="dash-card table-dash-card">
+    <div class="table-card-topbar">
+        <div>
+            <h2 class="dash-card-title">{{if eq .CurrentRole "admin"}}Shift Schedule Roster{{else}}My Assigned Shifts & Rosters{{end}}</h2>
+            <p class="dash-card-subtitle">{{if eq .CurrentRole "admin"}}Real-time overview of employee allocations, swap requests, and coverage status{{else}}View your active shifts, request shift swaps, or add coverage days{{end}}</p>
+        </div>
+        {{if eq .CurrentRole "admin"}}
+            <div>
+                <a href="/dashboard?view=assign" class="btn-primary" style="text-decoration:none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Assign New Shift</span>
+                </a>
+            </div>
+        {{end}}
+    </div>
+
+    <div class="table-responsive-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Assigned Shift</th>
+                    <th>Coverage Timeline</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .GroupedAllocations}}
+                <tr>
+                    <td>
+                        <div class="emp-cell">
+                            <div class="avatar-sm">{{slice .EmployeeName 0 1}}</div>
+                            <span class="emp-name">{{.EmployeeName}}</span>
+                        </div>
+                    </td>
+                    <td>
+                        {{range .Details}}
+                        <div class="table-cell-row">
+                            <span class="badge-shift {{if eq .ShiftName "Morning"}}shift-morning{{else if eq .ShiftName "Afternoon"}}shift-afternoon{{else if eq .ShiftName "Night"}}shift-night{{else}}shift-morning{{end}}">
+                                {{.ShiftName}}
+                            </span>
+                            {{if eq .Status "Pending"}}
+                                <span class="swap-req-tag">
+                                    Req: {{.NewRequestedShift}}
+                                </span>
+                            {{end}}
+                        </div>
+                        {{end}}
+                    </td>
+                    <td>
+                        {{range .Details}}
+                        <div class="table-cell-row" style="color:#475569; font-size:0.9rem; font-weight:500;">
+                            <span class="mono">{{.StartDate.Format "Jan 02"}} – {{.EndDate.Format "Jan 02"}}</span>
+                        </div>
+                        {{end}}
+                    </td>
+                    <td>
+                        {{range .Details}}
+                        <div class="table-cell-row">
+                            {{if eq .Status "Pending"}}
+                                <span class="status-pill status-pending">● Pending Swap</span>
+                            {{else}}
+                                <span class="status-pill status-confirmed">● Confirmed</span>
+                            {{end}}
+                        </div>
+                        {{end}}
+                    </td>
+                    <td>
+                        {{$emp := .EmployeeName}}
+                        {{range .Details}}
+                        <div class="table-cell-row" style="gap:8px;">
+                            {{if eq $.CurrentRole "admin"}}
+                                <button onclick='openEditModal("{{.ID}}","{{$emp}}","{{.ShiftName}}","{{.StartDate}}","{{.EndDate}}")' class="btn-action-edit">Edit</button>
+                                <form method="POST" action="/admin/delete" style="margin:0;">
+                                    <input type="hidden" name="id" value="{{.ID}}">
+                                    <button type="submit" class="btn-action-delete" onclick="return confirm('Delete this shift allocation?');">Delete</button>
+                                </form>
+                            {{end}}
+
+                            {{if and (ne $.CurrentRole "admin") (eq $.CurrentUser $emp)}}
+                                {{if eq .Status "Confirmed"}}
+                                    <form method="POST" action="/user/add-days" style="display:flex; gap:4px; margin:0; align-items:center;">
+                                        <input type="hidden" name="id" value="{{.ID}}">
+                                        <select name="days" class="form-select-sm">
+                                            <option value="1">+1 Day</option>
+                                            <option value="2">+2 Days</option>
+                                            <option value="7">+1 Week</option>
+                                        </select>
+                                        <button type="submit" class="btn-action-add">Add</button>
+                                    </form>
+                                    <form method="POST" action="/user/request-swap" style="display:flex; gap:4px; margin:0; align-items:center;">
+                                        <input type="hidden" name="id" value="{{.ID}}">
+                                        {{$cur := .ShiftName}}
+                                        <select name="new_shift" class="form-select-sm">
+                                            {{range $.ShiftTypes}}
+                                                {{if ne .Name $cur}}
+                                                    <option value="{{.Name}}">{{.Name}}</option>
+                                                {{end}}
+                                            {{end}}
+                                        </select>
+                                        <button type="submit" class="btn-action-swap">Swap</button>
+                                    </form>
+                                {{else}}
+                                    <span style="font-size:12px; color:#64748b; font-style:italic;">Awaiting Admin Review</span>
+                                {{end}}
+                            {{end}}
+                        </div>
+                        {{end}}
+                    </td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="5" style="padding:48px; text-align:center; color:#94a3b8;">
+                        <div style="font-size:1.1rem; font-weight:600; color:#475569;">No shifts scheduled yet</div>
+                        <p style="font-size:0.9rem; margin-top:4px;">{{if eq .CurrentRole "admin"}}Click "Assign New Shift" above to schedule workforce shifts.{{else}}No shifts currently assigned to your account.{{end}}</p>
+                    </td>
+                </tr>
                 {{end}}
-            </td>
-        </tr>
-        {{else}}<tr><td colspan="5" style="padding:30px; text-align:center; color:#888;">No shifts scheduled.</td></tr>{{end}}
-    </tbody>
-</table>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Bottom Area Chart: Workforce Operational Statistics -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <div>
+            <h3 class="dash-card-title">Workforce Coverage Trends</h3>
+            <p class="dash-card-subtitle">Operational staffing capacity & hours over active schedule periods</p>
+        </div>
+        <div class="chart-tab-group">
+            <button class="chart-tab active">Overview</button>
+            <button class="chart-tab">Morning</button>
+            <button class="chart-tab">Night</button>
+            <span class="chart-date-badge">Live Sync</span>
+        </div>
+    </div>
+    <div class="area-chart-container">
+        <svg class="area-chart-svg" viewBox="0 0 800 160" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#2563eb" stop-opacity="0.01"/>
+                </linearGradient>
+            </defs>
+            <path d="M 0,110 Q 150,80 300,95 T 600,60 T 800,70 L 800,160 L 0,160 Z" fill="url(#areaGrad)"/>
+            <path d="M 0,110 Q 150,80 300,95 T 600,60 T 800,70" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M 0,140 Q 150,130 300,120 T 600,135 T 800,115" fill="none" stroke="#0d9488" stroke-width="2" stroke-dasharray="4 4"/>
+        </svg>
+    </div>
+</div>
+
 {{end}}
