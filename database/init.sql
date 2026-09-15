@@ -25,8 +25,20 @@ CREATE TABLE IF NOT EXISTS allocations (
     new_requested_shift VARCHAR(50) DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    employee_name VARCHAR(255) REFERENCES users(username) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    shift_name VARCHAR(50),
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- INSERT YOUR SPECIFIC CREDENTIALS
 INSERT INTO users (username, password, role) VALUES 
     ('admin', 'admin123', 'admin')
 ON CONFLICT (username) DO NOTHING;
+
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"shift-manager/models"
+	"shift-manager/services"
 	"strconv"
 	"time"
 )
@@ -24,7 +25,15 @@ func RequestSwapHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		id, _ := strconv.Atoi(r.FormValue("id"))
 		newShift := r.FormValue("new_shift")
+
+		var emp, currentShift string
+		models.DB.QueryRow("SELECT employee_name, shift_name FROM allocations WHERE id = $1", id).Scan(&emp, &currentShift)
+
 		models.RequestSwap(id, newShift)
+
+		if emp != "" {
+			services.NotifyShiftSwapRequested(emp, currentShift, newShift)
+		}
 	}
 	http.Redirect(w, r, "/dashboard?view=schedule", http.StatusSeeOther)
 }
@@ -33,7 +42,14 @@ func RequestSwapHandler(w http.ResponseWriter, r *http.Request) {
 func ApproveRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		id, _ := strconv.Atoi(r.FormValue("id"))
+		var emp, newShift string
+		models.DB.QueryRow("SELECT employee_name, COALESCE(new_requested_shift, '') FROM allocations WHERE id = $1", id).Scan(&emp, &newShift)
+
 		models.ApproveSwap(id)
+
+		if emp != "" && newShift != "" {
+			services.NotifyShiftSwapApproved(emp, newShift)
+		}
 	}
 	http.Redirect(w, r, "/dashboard?view=requests", http.StatusSeeOther)
 }
@@ -97,6 +113,9 @@ func AssignShiftHandler(w http.ResponseWriter, r *http.Request) {
 
 		// 3. Create Allocation
 		models.CreateAllocation(employee, shiftName, start, end)
+
+		// 4. Send MQTT Real-time Notification
+		services.NotifyShiftAssigned(employee, shiftName, startStr, endStr)
 
 		http.Redirect(w, r, "/dashboard?view=schedule&success=1", http.StatusSeeOther)
 	}
