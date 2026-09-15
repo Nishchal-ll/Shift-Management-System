@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:15-alpine
@@ -8,11 +6,18 @@ services:
       POSTGRES_USER: go_user
       POSTGRES_PASSWORD: go_pass
       POSTGRES_DB: gobasics
-    # ports:
-    #   - "5432:5432"
     volumes:
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
       - pgdata:/var/lib/postgresql/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto_broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf
 
   app:
     build: .
@@ -21,15 +26,17 @@ services:
       - "8080:8080"
     depends_on:
       - db
+      - mosquitto
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: go_user
-
       DB_PASSWORD: go_pass
       DB_NAME: gobasics
       DB_URL: "host=db port=5432 user=go_user password=go_pass dbname=gobasics sslmode=disable"
+      MQTT_BROKER: "mosquitto:1883"
+    volumes:
+      - .:/app
 
 volumes:
   pgdata:
-  
