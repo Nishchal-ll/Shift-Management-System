@@ -219,8 +219,7 @@ Access the application in your browser:
 
 ---
 
-## 👤 Author
-
-**Nishchal**
+## Author
+- **Nishchal Acharya** - [Portfolio & Projects](https://www.acharyanishchal.com.np)
 
 ⭐ Feel free to star or fork this repository!
